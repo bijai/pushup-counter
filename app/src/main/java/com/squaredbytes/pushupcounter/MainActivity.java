@@ -1,6 +1,7 @@
 package com.squaredbytes.pushupcounter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -15,9 +16,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity  {
 
+    public static int CALIBRATE_REQCODE = 2;
     private SensorManager mSensorManager;
     private Sensor mProximity,mLight;
     private TextView textView,textView2,textViewCount,textViewState;
@@ -25,7 +28,7 @@ public class MainActivity extends AppCompatActivity  {
     int pushupCount,downThreshold=20,upThreshold=40;
     ProximityListener proximityListener;
     LightListener lightListener;
-
+    FloatingActionButton fab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,19 +38,13 @@ public class MainActivity extends AppCompatActivity  {
         setSupportActionBar(toolbar);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Reset Count ?", Snackbar.LENGTH_LONG)
-                        .setAction("Yes", new View.OnClickListener(){
 
-                            @Override
-                            public void onClick(View view) {
-                                pushupCount =0;
-                                textViewCount.setText(String.valueOf(pushupCount));
-                            }
-                        }).show();
+                Intent calibrateActivity = new Intent(getApplicationContext(), CalibrateActivity.class);
+                startActivityForResult(calibrateActivity,CALIBRATE_REQCODE);
             }
         });
         pushupCount =0;
@@ -80,9 +77,25 @@ public class MainActivity extends AppCompatActivity  {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (id)
+        {
+            case R.id.action_calibrate:
+                Intent calibrateActivity = new Intent(getApplicationContext(), CalibrateActivity.class);
+                startActivityForResult(calibrateActivity,CALIBRATE_REQCODE);
+                break;
+            case R.id.action_reset:
+                    Snackbar.make(this.findViewById(R.id.fab), "Reset Count ?", Snackbar.LENGTH_LONG)
+                        .setAction("Yes", new View.OnClickListener(){
+
+                        @Override
+                        public void onClick(View view) {
+                                pushupCount =0;
+                                textViewCount.setText(String.valueOf(pushupCount));
+                        }
+                    }).show();
+                break;
+            case R.id.action_settings :
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -141,6 +154,27 @@ public class MainActivity extends AppCompatActivity  {
         @Override
         public void onAccuracyChanged(Sensor sensor, int i) {
 
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+        // check if the request code is same as what is passed  here it is 2
+        if(requestCode==CALIBRATE_REQCODE)
+        {
+            if(data == null)
+                return;
+            float minLight = data.getFloatExtra("min",-1f);
+            float maxLight = data.getFloatExtra("max",-1f);
+            if(minLight != -1f && maxLight != -1f)
+            {
+                float diff = maxLight - minLight;
+                downThreshold =(int) (minLight + (diff/3));
+                upThreshold = (int) (maxLight - (diff/3));
+                Toast.makeText(this,"Down:"+downThreshold+"\nUp:"+upThreshold,Toast.LENGTH_LONG).show();
+            }
         }
     }
 }
